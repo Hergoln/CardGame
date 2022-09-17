@@ -9,7 +9,6 @@ class Player(ABC):
         The player will receive a dict with:
         - 'hand': list of held cards
         - 'discard': list of discarded cards in this round
-        - 'old_discards': list of discarded cards, round by round (list of lists of four cards)
         """
         pass
 
