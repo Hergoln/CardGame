@@ -18,8 +18,10 @@ def one_encode(cards: list) -> np.ndarray:
     anArray[suits_encode[card.suit] * 6 + ranks_encode[card.rank]] = 1
   return anArray
 
-def decode(one_encoded: np.ndarray) -> Card:
-  val = np.argmax(one_encoded)
+'''
+  Decodes intiger value to card
+'''
+def decode(val: int) -> Card:
   return Card(suits_decode[val // 6], ranks_decode[val % 6])
 
 def card_names():

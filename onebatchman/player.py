@@ -15,37 +15,47 @@ class OneBatchMan(Player):
     self.memory = np.zeros(24)
     self.cur_state = None
     self.action = None
+    self.cur_original_action = None
     self.cur_hand = None
     self.mvs = 0
     self.random_mvs = 0
     m = Brain(alpha=alpha, gamma=0.5, epsilon=1, batch_size=batch_size, mem_size=10_000)
     self.model = m
     self.wpmw = False
+    self.rc = 0 # repeat counter
 
-
-  def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
-    self.mvs += 1
-    
+  def create_state(self, game_state):
     self.cur_hand, discard, played = one_encode(game_state['hand']), one_encode(game_state['discard']), self.memory
     first_card = np.zeros(4)
 
     if game_state['discard']:
       first_card[suits_encode[game_state['discard'][0].suit]] = 1
     
-    self.cur_state = np.vstack((self.cur_hand, discard, played))
-    self.cur_state = np.append(self.cur_state.flatten(), first_card)
-    self.action = self.model.predict(self.cur_state)
+    _state = np.vstack((self.cur_hand, discard, played))
+    _state = np.append(_state.flatten(), first_card)
+    return _state
 
-    if was_previous_move_wrong:
+  def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
+    self.mvs += 1
+
+    if not was_previous_move_wrong:
+      self.cur_state = self.create_state(game_state)
+      self.action = self.model.predict(self.cur_state)[0] # returns vector of probabilities
+      self.cur_original_action = self.action.copy()
+    else:
       self.remember_bad_move(self.action)
-      self.random_mvs +=1
-      self.wpmw = was_previous_move_wrong
-      next_action = random.choice(game_state['hand'])
-      self.action = card_to_vector(next_action)
-    else: 
-      next_action = decode(self.action)
+      self.rc += 1
       
-    return next_action
+      is_all_zeros = np.all((self.action == 0))
+      if is_all_zeros:
+        print('Somehow action is all 0')
+        card_action = random.choice(game_state['hand'])
+        self.action = card_to_vector(card_action)
+      else:
+        v = np.argmax(self.action)
+        self.action[v] = 0
+
+    return decode(np.argmax(self.action))
 
   def remember_bad_move(self, action):
     # possibly add change of next state
@@ -73,7 +83,7 @@ class OneBatchMan(Player):
     #   points = points * 2
     # self.wpmw = False
     # In reality points are a penalty, because the goal of the game is to have THE LEAST no. of points
-    self.model.remember(self.cur_state, self.action, -points, state_, done)
+    self.model.remember(self.cur_state, self.action, points, state_, done)
     self.model.learn()
 
 

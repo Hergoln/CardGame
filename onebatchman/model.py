@@ -57,17 +57,7 @@ class Brain(object):
 
   def predict(self, state):
     state = state[np.newaxis,:]
-    rand = np.random.random()
-    if rand < self.epsilon:
-      choice = np.random.choice(self.action_space)
-      action = np.zeros(self.n_actions)
-      action[choice] = 1
-    else:
-      action = self.q_eval.predict(state, verbose=0)
-      i = np.argmax(action)
-      self.actions_frequency[i] += 1
-
-    return action
+    return self.q_eval.predict(state, verbose=0)
 
 
   def learn(self):
