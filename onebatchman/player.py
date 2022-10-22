@@ -1,6 +1,7 @@
 from card_game import Player, Card
 from onebatchman.utils import card_to_vector
 from . import decode, one_encode, Brain, suits_encode
+from pprint import pprint
 
 import random
 import numpy as np

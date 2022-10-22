@@ -107,42 +107,43 @@ class CardGame:
         """
         Runs the game once (11 deals).
         """
-        points_old = self.state["points"].copy()
-        for _ in range(13 if self.full_deck else 6):
+        for _ in range(11):
+            points_old = self.state["points"].copy()
+            for _ in range(13 if self.full_deck else 6):
+                for player in self.players:
+
+                    state_copy = {"hand": copy.deepcopy(self.state["hands"][player]),
+                                  "discard": copy.deepcopy(list(self.state["discard"].values()))}
+                    first_try = True
+                    while True:
+                        move = player.make_move(state_copy, not first_try)
+                        if self._validate(player, move):
+                            break
+                        first_try = False
+                    self.state["hands"][player].remove(move)
+                    self.state["discard"][player] = move
+                    if self.renderer:
+                        self.renderer.render(self.state)
+                loser, penalty = self._calc_penalty()
+
+                for player in self.players:
+                    temp_reward = {player: 0 for player in self.players} | {loser: penalty}
+                    discards = {player: self.state["discard"][player] for player in self.players}
+                    player.set_temp_reward(
+                        discards,
+                        temp_reward
+                    )
+
+                # the loser starts
+                first = self.players.index(loser)
+                self.players.rotate(-first)
+                self.state["points"][loser] += penalty
+
+                self.state["discard"] = {}
+            self.state["hands"] = self._deal()
             for player in self.players:
-
-                state_copy = {"hand": copy.deepcopy(self.state["hands"][player]),
-                                "discard": copy.deepcopy(list(self.state["discard"].values()))}
-                first_try = True
-                while True:
-                    move = player.make_move(state_copy, not first_try)
-                    if self._validate(player, move):
-                        break
-                    first_try = False
-                self.state["hands"][player].remove(move)
-                self.state["discard"][player] = move
-                if self.renderer:
-                    self.renderer.render(self.state)
-            loser, penalty = self._calc_penalty()
-
-            for player in self.players:
-                temp_reward = {player: 0 for player in self.players} | {loser: penalty}
-                discards = {player: self.state["discard"][player] for player in self.players}
-                player.set_temp_reward(
-                    discards,
-                    temp_reward
-                )
-
-            # the loser starts
-            first = self.players.index(loser)
-            self.players.rotate(-first)
-            self.state["points"][loser] += penalty
-
-            self.state["discard"] = {}
-        self.state["hands"] = self._deal()
-        for player in self.players:
-            points = {player: self.state["points"][player] - points_old[player] for player in self.players}
-            player.set_final_reward(points)
+                points = {player: self.state["points"][player] - points_old[player] for player in self.players}
+                player.set_final_reward(points)
         points = self.state["points"]
         self.state["points"] = {player: 0 for player in self.state["points"].keys()}
         return points

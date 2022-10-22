@@ -5,6 +5,8 @@ from card_game import CardGame, Player, Card
 from onebatchman import OneBatchMan, card_names
 from matplotlib import pyplot as plt
 import tensorflow as tf
+from pprint import pprint
+
 
 player = 1
 
