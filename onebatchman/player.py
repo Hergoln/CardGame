@@ -1,4 +1,3 @@
-from distutils.command.build_scripts import first_line_re
 from card_game import Player, Card
 from onebatchman.utils import card_to_vector
 from . import decode, one_encode, Brain, suits_encode
@@ -19,7 +18,7 @@ class OneBatchMan(Player):
     self.cur_hand = None
     self.mvs = 0
     self.random_mvs = 0
-    m = Brain(alpha=alpha, gamma=0.5, epsilon=1, batch_size=batch_size, mem_size=10_000)
+    m = Brain(alpha=alpha, gamma=0.9, epsilon=1, batch_size=batch_size, mem_size=10_000)
     self.model = m
     self.wpmw = False
     self.rc = 0 # repeat counter
@@ -48,7 +47,7 @@ class OneBatchMan(Player):
       
       is_all_zeros = np.all((self.action == 0))
       if is_all_zeros:
-        print('Somehow action is all 0')
+        self.random_mvs += 1
         card_action = random.choice(game_state['hand'])
         self.action = card_to_vector(card_action)
       else:

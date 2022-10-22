@@ -61,6 +61,7 @@ def parse():
     parser.add_argument('--delay', type=int, help='Delay between agents moves')
     parser.add_argument('--display', action='store_true', help='display card game in pygame')
     parser.add_argument('--save', action='store_true', help='save model after games all games are played out')
+    parser.add_argument('--load', type=str, help='path to model')
     return parser.parse_args()
 
 def checkpoint(cp_path, player, loss: list, r_mvs: list, freq):
@@ -116,15 +117,7 @@ def main():
     tf_setup()
     cp_path = define_path()
 
-    global player
-    obm = OneBatchMan(player, learning=True, alpha=1e-2)
-    player += 1
 
-    pl0 = RandomPlayer()
-    pl1 = RandomPlayer()
-    pl2 = RandomPlayer()
-
-    statistics = {obm: stat(), pl0: stat(), pl1: stat(), pl2: stat()}
     r_mvs = []
 
     args = parse()
@@ -132,7 +125,20 @@ def main():
     n_games = args.n_games if args.n_games else 2
     display = args.display
     save = args.save
+    load_path = args.load
 
+    global player
+    obm = OneBatchMan(player, learning=True, alpha=1e-2)
+    if load_path is not None:
+        obm.load_model(load_path)
+    
+    player += 1
+
+    pl0 = RandomPlayer()
+    pl1 = RandomPlayer()
+    pl2 = RandomPlayer()
+    
+    statistics = {obm: stat(), pl0: stat(), pl1: stat(), pl2: stat()}
     game = CardGame(obm, pl0, pl1, pl2, delay=delay, display=display, full_deck=False)
 
     from tqdm import tqdm
