@@ -59,7 +59,7 @@ class OneBatchMan(Player):
 
   def remember_bad_move(self, action):
     # possibly add change of next state
-    self.model.remember(self.cur_state.copy(), action.copy(), -512, self.cur_state.copy(), False)
+    self.model.remember(self.cur_state.copy(), action.copy(), 512, self.cur_state.copy(), False)
     self.model.learn()
 
   def get_name(self):
@@ -79,10 +79,6 @@ class OneBatchMan(Player):
     
     state_ = np.vstack((hand_, empty_discard_pile, played))
     state_ = np.append(state_.flatten(), empty_first_card)
-    # if self.wpmw:
-    #   points = points * 2
-    # self.wpmw = False
-    # In reality points are a penalty, because the goal of the game is to have THE LEAST no. of points
     self.model.remember(self.cur_state, self.action, points, state_, done)
     self.model.learn()
 

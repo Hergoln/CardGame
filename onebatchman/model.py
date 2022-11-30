@@ -43,7 +43,7 @@ class Brain(object):
     self.replace_target = replace_target
     self.memory = ReplayBuffer(mem_size, input_dims, 24)
     convs = []
-    dnss = [256, 128, 64, 32]
+    dnss = [128, 64, 32]
     self.q_eval = build_dqn(alpha, input_dims, convs, dnss, 24)
     self.q_target = build_dqn(alpha, input_dims, convs, dnss, 24)
     self.history = []
