@@ -9,7 +9,7 @@ from pprint import pprint
 
 
 player = 1
-
+global_stats = []
 
 class RandomPlayer(Player):
     """
@@ -66,14 +66,20 @@ def parse():
     parser.add_argument('--load', type=str, help='path to model')
     return parser.parse_args()
 
-def checkpoint(cp_path, player, loss: list, r_mvs: list, freq):
+def save_results(cp_path):
+    with open(cp_path + '_results' + '.txt', 'w') as filehandler:
+        for item in global_stats:
+            filehandler.write('%s\n' % compose_stats(item))
+
+def checkpoint(cp_path, player, loss: list, r_mvs: list):
     player.save_model(cp_path + '.h5')
-    fig = plot_things(loss, r_mvs, freq)
+    save_results(cp_path)
+    fig = plot_things(loss, r_mvs)
     fig.savefig(cp_path + '.png')
     plt.close(fig)
 
-def plot_things(loss: list, r_mvs: list, freq):
-    fig, ax = plt.subplots(3, 1, figsize=(20, 14))
+def plot_things(loss: list, r_mvs: list):
+    fig, ax = plt.subplots(2, 1, figsize=(20, 14))
 
     ax[0].set_title("loss")
     ax[0].plot(loss)
@@ -81,16 +87,13 @@ def plot_things(loss: list, r_mvs: list, freq):
     ax[1].set_title("random moves per game")
     ax[1].plot(r_mvs)
 
-    ax[2].set_title("Moves frequency")
-    ax[2].bar(freq[0], freq[1], align='edge')
-
     fig.tight_layout()
     return fig
 
 def define_path():
     import os
     count = len(os.listdir("obm-cp/"))
-    return "obm-cp/obm" + str((count // 2) + 1)
+    return "obm-cp/obm" + str((count // 3) + 1)
 
 class stat:
     def __init__(self) -> None:
@@ -98,6 +101,20 @@ class stat:
         self.avg = 0
         self.sum = 0
         self.games = 0
+
+    def copy(self):
+        other = stat()
+        other.wins = self.wins
+        other.avg = self.avg
+        other.sum = self.sum
+        other.games = self.games
+        return other
+
+def copy(stats):
+    new_stats = {}
+    for key in stats:
+        new_stats[key] = stats[key].copy()
+    return new_stats
 
 def update_stats(scores, stats):
     winner = None
@@ -110,6 +127,7 @@ def update_stats(scores, stats):
             winner = p
 
     stats[winner].wins += 1
+    global_stats.append(copy(stats))
 
 def update_avg(stats):
     for p in stats:
@@ -130,7 +148,7 @@ def main():
     load_path = args.load
 
     global player
-    obm = OneBatchMan(player, learning=True, alpha=1e-2)
+    obm = OneBatchMan(player, learning=True, alpha=3e-4)
     if load_path is not None:
         obm.load_model(load_path)
     
@@ -145,28 +163,42 @@ def main():
 
     from tqdm import tqdm
 
-    interval = 10
+    scores = None
+    interval = 1
     r_mvs_cnt = 0
     mvs = 0
     progress_bar = tqdm(range(n_games), position=0)
     stats = tqdm(total=0, position=1, bar_format='{desc}')
 
     for cntr in progress_bar:
-        scores = game.start()
+        try:
+            scores = game.start()
+            update_stats(scores, statistics)
+            update_avg(statistics)
+            r_mvs.append(obm.rc - r_mvs_cnt)
+            stats.set_description_str(compose_stats(statistics))
+            r_mvs_cnt = obm.rc
+            if (cntr + 1) % interval == 0:
+                if save:
+                    # freq = (card_names(), obm.model.actions_frequency)
+                    checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
+                    # print(obm.loss_history())
+        except Exception as e:
+            print(e)
+            if save:
+                checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
+            print("Oh well")
+
+    
+    obm.model.memory.print_buffer('buffer_result.txt')
+
+    if scores:
         update_stats(scores, statistics)
         update_avg(statistics)
-        r_mvs.append(obm.random_mvs - r_mvs_cnt)
-        stats.set_description_str(compose_stats(statistics))
-        r_mvs_cnt = obm.random_mvs
-        if (cntr + 1) % interval == 0:
-            if save:
-                freq = (card_names(), obm.model.actions_frequency)
-                checkpoint(cp_path, obm, obm.loss_history(), r_mvs, freq)
-
-    update_avg(statistics)
-    print(compose_stats(statistics))
-    freq = (card_names(), obm.model.actions_frequency)
-    checkpoint(cp_path, obm, obm.loss_history(), r_mvs, freq)
+        print(compose_stats(statistics))
+        # freq = (card_names(), obm.model.actions_frequency)
+    if save:
+        checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
     plt.show()
 
 if __name__ == '__main__':

@@ -18,6 +18,7 @@ class ReplayBuffer(object):
         self.action_memory[index] = action
         self.reward_memory[index] = reward
         self.terminal_memory[index] = done
+        # print(self.get_transition(index))
         self.mem_cntr += 1
 
     def sample_buffer(self, batch_size):
@@ -32,3 +33,24 @@ class ReplayBuffer(object):
         terminal = self.terminal_memory[batch]
 
         return states, actions, rewards, states_, terminal
+
+
+    def print_buffer(self):
+        for index in range(self.mem_cntr if self.mem_cntr < self.mem_size else self.mem_size):
+            print(self.transition_rep(index))
+
+    def print_buffer(self, filename):
+        with open(filename, 'w') as filehandler:
+            for index in range(self.mem_cntr if self.mem_cntr < self.mem_size else self.mem_size):
+                filehandler.write(self.get_transition(index))
+
+    def get_transition(self, index):
+        ester = '\n'
+        ester += f"Transition no.: {index}\n"
+        ester += str(self.state_memory[index]) + "\n"
+        ester += str(self.new_state_memory[index]) + "\n"
+        ester += str(self.action_memory[index]) + "\n"
+        ester += str(self.reward_memory[index]) + "\n"
+        ester += str(self.terminal_memory[index]) + "\n"
+        ester += '\n'
+        return ester

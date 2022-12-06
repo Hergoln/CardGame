@@ -6,15 +6,10 @@ from tensorflow.keras.optimizers import Adam
 from .replybuffer import ReplayBuffer
 
 
-def build_dqn(lr, input_dims, conv_dims, dense_dims, n_actions=24):
+def build_dqn(lr, input_dims, dense_dims, n_actions=24):
   layers = []
   layers.append(Input(shape=input_dims))
 
-  for i in range(0, len(conv_dims)):
-    layers.append(Conv1D(conv_dims[i], 4, strides=2, padding='same'))
-    layers.append(Activation(relu))
-
-  layers.append(Flatten())
   for shape in dense_dims:
     layers.append(Dense(shape))
     layers.append(Activation(relu))
@@ -24,14 +19,14 @@ def build_dqn(lr, input_dims, conv_dims, dense_dims, n_actions=24):
   layers.append(Activation(softmax))
 
   model = Sequential(layers)
-
+  # model.summary()
   model.compile(optimizer=Adam(lr=lr), loss='mse')
   return model
 
 
 class Brain(object):
   def __init__(self, alpha, gamma, epsilon, batch_size, input_dims=(3*24 + 4),
-              epsilon_dec=0.996, epsilon_end=0.01, mem_size=100, 
+              epsilon_dec=0.98, epsilon_end=0.01, mem_size=1000, 
               replace_target=10) -> None:
     self.n_actions = 24
     self.action_space = [i for i in  range(self.n_actions)]
@@ -42,14 +37,10 @@ class Brain(object):
     self.epsilon_end = epsilon_end
     self.replace_target = replace_target
     self.memory = ReplayBuffer(mem_size, input_dims, 24)
-    convs = []
-    dnss = [128, 64, 32]
-    self.q_eval = build_dqn(alpha, input_dims, convs, dnss, 24)
-    self.q_target = build_dqn(alpha, input_dims, convs, dnss, 24)
+    dnss = [64, 48]
+    self.q_eval = build_dqn(alpha, input_dims, dnss, 24)
+    self.q_target = build_dqn(alpha, input_dims, dnss, 24)
     self.history = []
-
-    self.actions_frequency = np.zeros(24, dtype=np.int32)
-
 
   def remember(self, state, action, reward, state_, done):
     self.memory.store_transition(state, action, reward, state_, done)
@@ -73,6 +64,9 @@ class Brain(object):
       q_pred = self.q_eval.predict(state, verbose=0)
 
       max_actions = np.argmax(q_eval, axis=1)
+      # print("Pred in learn")
+      # print(q_pred[0])
+      # print()
 
       q_target = q_pred
 
@@ -90,7 +84,6 @@ class Brain(object):
 
   def update_network_parameters(self):
     self.q_target.set_weights(self.q_eval.get_weights())
-
 
   def save_model(self, fname):
     self.q_eval.save(fname)

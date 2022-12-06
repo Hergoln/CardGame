@@ -19,10 +19,35 @@ class OneBatchMan(Player):
     self.cur_hand = None
     self.mvs = 0
     self.random_mvs = 0
-    m = Brain(alpha=alpha, gamma=0.9, epsilon=1, batch_size=batch_size, mem_size=10_000)
-    self.model = m
+    self.model = Brain(alpha=alpha, gamma=0.9, epsilon=1, batch_size=batch_size, mem_size=10_000)
     self.wpmw = False
     self.rc = 0 # repeat counter
+
+  def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
+    self.mvs += 1
+
+    if not was_previous_move_wrong:
+      self.cur_state = self.create_state(game_state)
+      # print("Pred in make_move")
+      # print(self.model.predict(self.cur_state))
+      # print()
+
+      self.action = self.model.predict(self.cur_state)[0] # returns vector of probabilities
+      # print(self.action)
+      self.cur_original_action = self.action.copy()
+    else:
+      self.rc += 1
+
+      if np.all((self.action == 0)):
+        card_action = random.choice(game_state['hand'])
+        self.action = card_to_vector(card_action)
+        # raise Exception("Oh something got terribly wrong and every option has been depleted")
+      else:
+        self.remember_bad_move(self.action)
+        v = np.argmax(self.action)
+        self.action[v] = 0
+
+    return decode(np.argmax(self.action))
 
   def create_state(self, game_state):
     self.cur_hand, discard, played = one_encode(game_state['hand']), one_encode(game_state['discard']), self.memory
@@ -35,31 +60,9 @@ class OneBatchMan(Player):
     _state = np.append(_state.flatten(), first_card)
     return _state
 
-  def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
-    self.mvs += 1
-
-    if not was_previous_move_wrong:
-      self.cur_state = self.create_state(game_state)
-      self.action = self.model.predict(self.cur_state)[0] # returns vector of probabilities
-      self.cur_original_action = self.action.copy()
-    else:
-      self.remember_bad_move(self.action)
-      self.rc += 1
-      
-      is_all_zeros = np.all((self.action == 0))
-      if is_all_zeros:
-        self.random_mvs += 1
-        card_action = random.choice(game_state['hand'])
-        self.action = card_to_vector(card_action)
-      else:
-        v = np.argmax(self.action)
-        self.action[v] = 0
-
-    return decode(np.argmax(self.action))
-
   def remember_bad_move(self, action):
     # possibly add change of next state
-    self.model.remember(self.cur_state.copy(), action.copy(), 512, self.cur_state.copy(), False)
+    self.model.remember(self.cur_state.copy(), action.copy(), 100, self.cur_state.copy(), False)
     self.model.learn()
 
   def get_name(self):
