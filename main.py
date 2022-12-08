@@ -148,7 +148,7 @@ def main():
     load_path = args.load
 
     global player
-    obm = OneBatchMan(player, learning=True, alpha=3e-4)
+    obm = OneBatchMan(player, learning=True)
     if load_path is not None:
         obm.load_model(load_path)
     
@@ -171,7 +171,7 @@ def main():
     stats = tqdm(total=0, position=1, bar_format='{desc}')
 
     for cntr in progress_bar:
-        try:
+        # try:
             scores = game.start()
             update_stats(scores, statistics)
             update_avg(statistics)
@@ -183,11 +183,11 @@ def main():
                     # freq = (card_names(), obm.model.actions_frequency)
                     checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
                     # print(obm.loss_history())
-        except Exception as e:
-            print(e)
-            if save:
-                checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
-            print("Oh well")
+        # except Exception as e:
+        #     print(e)
+        #     if save:
+        #         checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
+        #     print("Oh well")
 
     
     obm.model.memory.print_buffer('buffer_result.txt')

@@ -1,6 +1,6 @@
 from card_game import Player, Card
 from onebatchman.utils import card_to_vector
-from . import decode, one_encode, Brain, suits_encode
+from . import decode, one_encode, Brain, suits_encode, one_decode, card_id
 from pprint import pprint
 
 import random
@@ -9,47 +9,44 @@ import numpy as np
 from pprint import pprint
 
 class OneBatchMan(Player):
-  def __init__(self, player_no, learning=False, alpha=0.0005, batch_size=32) -> None:
+  def __init__(self, player_no, learning=False) -> None:
     self.number = player_no
     self.learning = False
     self.memory = np.zeros(24)
     self.cur_state = None
     self.action = None
-    self.cur_original_action = None
     self.cur_hand = None
+    self.previous_state = None
+    self.previous_action = None
+    self.temp_reward = None
     self.mvs = 0
     self.random_mvs = 0
-    self.model = Brain(alpha=alpha, gamma=0.9, epsilon=1, batch_size=batch_size, mem_size=10_000)
-    self.wpmw = False
-    self.rc = 0 # repeat counter
+    self.model = Brain(alpha=5e-4, gamma=0.8,batch_size=32,input_dims=(3*24 + 4), mem_size=1_000,dnss=[64, 48],n_actions=24)
 
   def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
     self.mvs += 1
 
-    if not was_previous_move_wrong:
-      self.cur_state = self.create_state(game_state)
-      # print("Pred in make_move")
-      # print(self.model.predict(self.cur_state))
-      # print()
+    if was_previous_move_wrong:
+      self.random_mvs += 1
+      card = random.choice(game_state['hand'])
+      self.action = card_id(card)
+      self.remember_bad_move(self.action)
+      return card
 
-      self.action = self.model.predict(self.cur_state)[0] # returns vector of probabilities
-      # print(self.action)
-      self.cur_original_action = self.action.copy()
-    else:
-      self.rc += 1
+    self.previous_state = self.cur_state
+    self.previous_action = self.action
+    self.cur_state = self.create_state_vector(game_state)
+    pred = self.model.predict(self.cur_state)[0] # returns vector of probabilities
+    self.action = np.argmax(pred)
 
-      if np.all((self.action == 0)):
-        card_action = random.choice(game_state['hand'])
-        self.action = card_to_vector(card_action)
-        # raise Exception("Oh something got terribly wrong and every option has been depleted")
-      else:
-        self.remember_bad_move(self.action)
-        v = np.argmax(self.action)
-        self.action[v] = 0
+    # for this to work, all states, actions and rewards have to be nulled, so it wont go into hell by accident
+    if self.previous_state:
+      self.model.remember(self.previous_state, self.previous_action, self.temp_reward, self.cur_state, False)
+      self.model.learn()
 
-    return decode(np.argmax(self.action))
+    return decode(self.action)
 
-  def create_state(self, game_state):
+  def create_state_vector(self, game_state):
     self.cur_hand, discard, played = one_encode(game_state['hand']), one_encode(game_state['discard']), self.memory
     first_card = np.zeros(4)
 
@@ -61,30 +58,13 @@ class OneBatchMan(Player):
     return _state
 
   def remember_bad_move(self, action):
-    # possibly add change of next state
-    self.model.remember(self.cur_state.copy(), action.copy(), 100, self.cur_state.copy(), False)
+    # done = True, because if its a bad move we do not have a next state, 
+    # thus passing True here will zero out second part of target computation
+    self.model.remember(self.cur_state.copy(), action, -200, self.no_state(), True)
     self.model.learn()
 
   def get_name(self):
     return f"OneBatchMan{self.number}"
-
-
-  """
-    empty_discard_pile and empty_first_card are here because remember_transition
-    has to create NEXT STATE (state_) and this state is a state after all players
-    has played their cards and no card is on the table
-  """
-  def remember_transition(self, points, done):
-    hand_ = self.cur_hand - self.action
-    empty_discard_pile = np.zeros(24)
-    played = self.memory.copy()
-    empty_first_card = np.zeros(4)
-    
-    state_ = np.vstack((hand_, empty_discard_pile, played))
-    state_ = np.append(state_.flatten(), empty_first_card)
-    self.model.remember(self.cur_state, self.action, points, state_, done)
-    self.model.learn()
-
 
   """
     discarded cards so we can update appropriate vector
@@ -93,16 +73,17 @@ class OneBatchMan(Player):
   def set_temp_reward(self, discarded_cards: dict, point_deltas: dict):
     discarded = one_encode(discarded_cards.values())
     self.memory[discarded > 0] = 1
-    self.remember_transition(point_deltas[self], False)
+    self.temp_reward = point_deltas[self]
 
-
-  """
-    points rewarded at the end of the game
-  """
   def set_final_reward(self, points: dict):
-    self.remember_transition(points[self], True)
-    self.memory = np.zeros(24)
+    self.model.remember(self.cur_state, self.action, points[self], self.no_state(), True)
+    self.model.learn()
 
+    self.memory = np.zeros(24)
+    self.previous_state = None
+    self.previous_action = None
+    self.temp_reward = None
+    self.cur_state = None
 
   def save_model(self, fname):
     self.model.save_model(fname)
@@ -113,3 +94,10 @@ class OneBatchMan(Player):
 
   def loss_history(self):
     return self.model.history
+
+  """
+    State that is just a placeholder, used for example as next state for final state
+    or for bad move
+  """
+  def no_state(self):
+    return np.zeros(3*24 + 4)
