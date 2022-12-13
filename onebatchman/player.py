@@ -21,30 +21,50 @@ class OneBatchMan(Player):
     self.temp_reward = None
     self.mvs = 0
     self.random_mvs = 0
-    self.model = Brain(alpha=5e-4, gamma=0.8,batch_size=32,input_dims=(3*24 + 4), mem_size=1_000,dnss=[64, 48],n_actions=24)
+    self.model = Brain(alpha=2e-2, gamma=0.92, batch_size=32, input_dims=(3*24 + 4), mem_size=1_000, dnss=[48, 48], n_actions=24)
 
   def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
     self.mvs += 1
 
     if was_previous_move_wrong:
       self.random_mvs += 1
+      self.remember_bad_move(self.action)
       card = random.choice(game_state['hand'])
       self.action = card_id(card)
-      self.remember_bad_move(self.action)
       return card
 
     self.previous_state = self.cur_state
     self.previous_action = self.action
     self.cur_state = self.create_state_vector(game_state)
-    pred = self.model.predict(self.cur_state)[0] # returns vector of probabilities
-    self.action = np.argmax(pred)
+    pred = self.model.predict(self.cur_state)[0]
+    self.action = self.pick_move(game_state, pred, self.model.epsilon)
 
     # for this to work, all states, actions and rewards have to be nulled, so it wont go into hell by accident
-    if self.previous_state:
+    if self.previous_state is not None:
       self.model.remember(self.previous_state, self.previous_action, self.temp_reward, self.cur_state, False)
       self.model.learn()
 
     return decode(self.action)
+
+  def pick_move(self, game_state, pred, epsilon):
+    if random.random() < epsilon:
+      return card_id(random.choice(game_state['hand']))
+
+    possible_actions = self.get_legal_idx(game_state)
+    actions_matrix: np.ndarray = pred.take(possible_actions) +1e-8
+    actions_matrix = actions_matrix.astype('float64')
+    actions_matrix = actions_matrix/actions_matrix.sum()
+    return np.random.multinomial(1, actions_matrix).argmax()
+
+  def legal_moves(self, game_state):
+    if game_state['discard']:
+      options = list(filter(lambda card: card.suit == list(game_state["discard"])[0].suit, game_state["hand"]))
+      if len(options) > 0:
+        return options
+    return game_state['hand']
+
+  def get_legal_idx(self, state):
+    return [card_id(card) for card in self.legal_moves(state)]
 
   def create_state_vector(self, game_state):
     self.cur_hand, discard, played = one_encode(game_state['hand']), one_encode(game_state['discard']), self.memory
@@ -60,7 +80,7 @@ class OneBatchMan(Player):
   def remember_bad_move(self, action):
     # done = True, because if its a bad move we do not have a next state, 
     # thus passing True here will zero out second part of target computation
-    self.model.remember(self.cur_state.copy(), action, -200, self.no_state(), True)
+    self.model.remember(self.cur_state.copy(), action, -50, self.no_state(), True)
     self.model.learn()
 
   def get_name(self):

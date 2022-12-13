@@ -164,30 +164,30 @@ def main():
     from tqdm import tqdm
 
     scores = None
-    interval = 1
+    interval = 10
     r_mvs_cnt = 0
     mvs = 0
     progress_bar = tqdm(range(n_games), position=0)
     stats = tqdm(total=0, position=1, bar_format='{desc}')
 
     for cntr in progress_bar:
-        # try:
+        try:
             scores = game.start()
             update_stats(scores, statistics)
             update_avg(statistics)
-            r_mvs.append(obm.rc - r_mvs_cnt)
+            r_mvs.append(obm.random_mvs - r_mvs_cnt)
             stats.set_description_str(compose_stats(statistics))
-            r_mvs_cnt = obm.rc
+            r_mvs_cnt = obm.random_mvs
             if (cntr + 1) % interval == 0:
                 if save:
                     # freq = (card_names(), obm.model.actions_frequency)
                     checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
                     # print(obm.loss_history())
-        # except Exception as e:
-        #     print(e)
-        #     if save:
-        #         checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
-        #     print("Oh well")
+        except Exception as e:
+            print(e)
+            if save:
+                checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
+            print("Oh well")
 
     
     obm.model.memory.print_buffer('buffer_result.txt')

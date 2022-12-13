@@ -1,6 +1,6 @@
 import numpy as np
 from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Input, Softmax
+from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Input, Softmax, ReLU
 from tensorflow.keras.activations import relu
 from tensorflow.keras.optimizers import Adam
 from .replybuffer import ReplayBuffer
@@ -16,7 +16,6 @@ def build_dqn(lr, input_dims, dense_dims, n_actions):
   
   layers.append(Dense(n_actions))
   layers.append(Activation(relu))
-  layers.append(Softmax())
 
   model = Sequential(layers)
   model.compile(optimizer=Adam(lr=lr), loss='mse')
@@ -51,6 +50,10 @@ class Brain(object):
       next = self.network.predict(new_state, verbose=0)
 
       batch_index = np.arange(self.batch_size, dtype=np.int8)
+      
+      # print(f"state: {state}")
+      # print(f"action: {action}")
+      # print(f"reward: {reward}")
 
       pred[batch_index, action] = reward + self.gamma * next[batch_index, action] * (1 - done)
 
