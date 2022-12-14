@@ -179,6 +179,9 @@ def main():
             stats.set_description_str(compose_stats(statistics))
             r_mvs_cnt = obm.random_mvs
             if (cntr + 1) % interval == 0:
+                print()
+                print(obm.last_pred)
+                print()
                 if save:
                     # freq = (card_names(), obm.model.actions_frequency)
                     checkpoint(cp_path, obm, obm.loss_history(), r_mvs)

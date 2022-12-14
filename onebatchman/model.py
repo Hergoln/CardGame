@@ -1,7 +1,7 @@
 import numpy as np
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Input, Softmax, ReLU
-from tensorflow.keras.activations import relu
+from tensorflow.keras.activations import relu, softmax
 from tensorflow.keras.optimizers import Adam
 from .replybuffer import ReplayBuffer
 
@@ -15,7 +15,7 @@ def build_dqn(lr, input_dims, dense_dims, n_actions):
     # layers.append(BatchNormalization())
   
   layers.append(Dense(n_actions))
-  layers.append(Activation(relu))
+  layers.append(Activation(softmax))
 
   model = Sequential(layers)
   model.compile(optimizer=Adam(lr=lr), loss='mse')
@@ -48,14 +48,20 @@ class Brain(object):
       pred = self.network.predict(state, verbose=0)
       # TODO add activation of only those that are proper moves
       next = self.network.predict(new_state, verbose=0)
+      # print(next)
+      next_action = next.argmax(axis=1)
+      # print(next_action)
+      # print()
 
       batch_index = np.arange(self.batch_size, dtype=np.int8)
-      
+
       # print(f"state: {state}")
       # print(f"action: {action}")
       # print(f"reward: {reward}")
-
-      pred[batch_index, action] = reward + self.gamma * next[batch_index, action] * (1 - done)
+      pred[batch_index, action] = reward * 1e-2 + self.gamma * next[batch_index, next_action] * (1 - done)
+      # print("target")
+      # print(pred)
+      # print()
 
       self.history.append(self.network.fit(state, pred, verbose=0).history['loss'])
 

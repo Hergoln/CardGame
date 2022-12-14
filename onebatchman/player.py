@@ -22,6 +22,7 @@ class OneBatchMan(Player):
     self.mvs = 0
     self.random_mvs = 0
     self.model = Brain(alpha=2e-2, gamma=0.92, batch_size=32, input_dims=(3*24 + 4), mem_size=1_000, dnss=[48, 48], n_actions=24)
+    self.last_pred = None
 
   def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
     self.mvs += 1
@@ -37,6 +38,8 @@ class OneBatchMan(Player):
     self.previous_action = self.action
     self.cur_state = self.create_state_vector(game_state)
     pred = self.model.predict(self.cur_state)[0]
+    self.last_pred = pred
+    # print(pred)
     self.action = self.pick_move(game_state, pred, self.model.epsilon)
 
     # for this to work, all states, actions and rewards have to be nulled, so it wont go into hell by accident
@@ -48,7 +51,7 @@ class OneBatchMan(Player):
 
   def pick_move(self, game_state, pred, epsilon):
     if random.random() < epsilon:
-      return card_id(random.choice(game_state['hand']))
+      return card_id(random.choice(self.legal_moves(game_state)))
 
     possible_actions = self.get_legal_idx(game_state)
     actions_matrix: np.ndarray = pred.take(possible_actions) +1e-8
