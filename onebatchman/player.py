@@ -52,9 +52,11 @@ class OneBatchMan(Player):
   def pick_move(self, game_state, pred, epsilon):
     if random.random() < epsilon:
       return card_id(random.choice(self.legal_moves(game_state)))
-
     possible_actions = self.get_legal_idx(game_state)
-    possible_actions: np.ndarray = pred.take(possible_actions) +1e-8
+    action_matrix = np.zeros(24)
+    action_matrix[possible_actions] = 1
+    possible_actions = pred * action_matrix
+    
     return possible_actions.argmax()
 
   def legal_moves(self, game_state):
