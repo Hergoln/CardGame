@@ -54,8 +54,8 @@ def compose_stats(statistics):
 
 def tf_setup():
     gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
+    tf.debugging.set_log_device_placement(False)
+    tf.config.set_visible_devices(gpus, 'GPU')
 
 def parse():
     parser = argparse.ArgumentParser(description='Python CardGame for zkum classes')
@@ -159,10 +159,13 @@ def main():
     pl2 = RandomPlayer()
     
     statistics = {obm: stat(), pl0: stat(), pl1: stat(), pl2: stat()}
-    game = CardGame(obm, pl0, pl1, pl2, delay=delay, display=display, full_deck=False)
+    if args.delay:
+        game = CardGame(obm, pl0, pl1, pl2, delay=delay, display=display, full_deck=False)
+    else:
+        game = CardGame(obm, pl0, pl1, pl2, display=display, full_deck=False)
 
     from tqdm import tqdm
-
+    import time
     scores = None
     interval = 10
     r_mvs_cnt = 0
@@ -179,13 +182,13 @@ def main():
             stats.set_description_str(compose_stats(statistics))
             r_mvs_cnt = obm.random_mvs
             if (cntr + 1) % interval == 0:
-                print()
+                print("\n\n")
                 print(obm.last_pred)
-                print()
                 if save:
                     # freq = (card_names(), obm.model.actions_frequency)
                     checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
                     # print(obm.loss_history())
+
         except Exception as e:
             print(e)
             if save:

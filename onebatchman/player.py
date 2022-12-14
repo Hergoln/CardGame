@@ -1,10 +1,11 @@
 from card_game import Player, Card
 from onebatchman.utils import card_to_vector
-from . import decode, one_encode, Brain, suits_encode, one_decode, card_id
+from . import decode, one_encode, Brain, suits_encode, card_id
 from pprint import pprint
 
 import random
 import numpy as np
+import time
 
 from pprint import pprint
 
@@ -21,7 +22,7 @@ class OneBatchMan(Player):
     self.temp_reward = None
     self.mvs = 0
     self.random_mvs = 0
-    self.model = Brain(alpha=2e-2, gamma=0.92, batch_size=32, input_dims=(3*24 + 4), mem_size=1_000, dnss=[48, 48], n_actions=24)
+    self.model = Brain(alpha=3e-3, gamma=0.99, batch_size=32, input_dims=(3*24 + 4), mem_size=1_000, dnss=[48, 48], n_actions=24)
     self.last_pred = None
 
   def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
@@ -37,15 +38,14 @@ class OneBatchMan(Player):
     self.previous_state = self.cur_state
     self.previous_action = self.action
     self.cur_state = self.create_state_vector(game_state)
+
     pred = self.model.predict(self.cur_state)[0]
     self.last_pred = pred
-    # print(pred)
     self.action = self.pick_move(game_state, pred, self.model.epsilon)
 
     # for this to work, all states, actions and rewards have to be nulled, so it wont go into hell by accident
     if self.previous_state is not None:
       self.model.remember(self.previous_state, self.previous_action, self.temp_reward, self.cur_state, False)
-      self.model.learn()
 
     return decode(self.action)
 
@@ -54,10 +54,8 @@ class OneBatchMan(Player):
       return card_id(random.choice(self.legal_moves(game_state)))
 
     possible_actions = self.get_legal_idx(game_state)
-    actions_matrix: np.ndarray = pred.take(possible_actions) +1e-8
-    actions_matrix = actions_matrix.astype('float64')
-    actions_matrix = actions_matrix/actions_matrix.sum()
-    return np.random.multinomial(1, actions_matrix).argmax()
+    possible_actions: np.ndarray = pred.take(possible_actions) +1e-8
+    return possible_actions.argmax()
 
   def legal_moves(self, game_state):
     if game_state['discard']:
@@ -84,7 +82,6 @@ class OneBatchMan(Player):
     # done = True, because if its a bad move we do not have a next state, 
     # thus passing True here will zero out second part of target computation
     self.model.remember(self.cur_state.copy(), action, -50, self.no_state(), True)
-    self.model.learn()
 
   def get_name(self):
     return f"OneBatchMan{self.number}"
