@@ -23,7 +23,7 @@ def build_dqn(lr, input_dims, dense_dims, n_actions):
   return model
 
 class Brain(object):
-  def __init__(self, alpha, gamma, batch_size, input_dims, mem_size, dnss, n_actions) -> None:
+  def __init__(self, alpha, gamma, batch_size, input_dims, mem_size, dnss, n_actions, reward_discount) -> None:
     self.n_actions = n_actions
     self.action_space = np.array([i for i in  range(self.n_actions)], dtype=np.int8)
     self.gamma = gamma
@@ -34,6 +34,7 @@ class Brain(object):
     self.memory = ReplayBuffer(mem_size, input_dims, 24)
     self.network = build_dqn(alpha, input_dims, dnss, 24)
     self.history = []
+    self.reward_discount = reward_discount
 
   def remember(self, state, action, reward, state_, done):
     self.memory.store_transition(state, action, reward, state_, done)
@@ -50,7 +51,7 @@ class Brain(object):
       next = self.network.predict(new_state, verbose=0)
       next_action = next.argmax(axis=1)
       batch_index = np.arange(self.batch_size, dtype=np.int8)
-      pred[batch_index, action] = reward * 1e-2 + self.gamma * next[batch_index, next_action] * (1 - done)
+      pred[batch_index, action] = reward * self.reward_discount + self.gamma * next[batch_index, next_action] * (1 - done)
 
       self.history.append(self.network.fit(state, pred, verbose=0).history['loss'])
 

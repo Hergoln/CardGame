@@ -9,6 +9,15 @@ import time
 
 from pprint import pprint
 
+
+punish_reward = 50
+dnss = [48, 48]
+aplha = 3e-4
+gamma = 0.99
+batch_size = 16
+max_mem_size = 1_000
+reward_discount = 2e-2
+
 class OneBatchMan(Player):
   def __init__(self, player_no, learning=False) -> None:
     self.number = player_no
@@ -22,7 +31,7 @@ class OneBatchMan(Player):
     self.temp_reward = None
     self.mvs = 0
     self.random_mvs = 0
-    self.model = Brain(alpha=3e-3, gamma=0.99, batch_size=32, input_dims=(3*24 + 4), mem_size=1_000, dnss=[48, 48], n_actions=24)
+    self.model = Brain(alpha=aplha, gamma=gamma, batch_size=batch_size, input_dims=(3*24 + 4), mem_size=max_mem_size, dnss=dnss, n_actions=24, reward_discount=reward_discount)
     self.last_pred = None
 
   def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
@@ -83,7 +92,7 @@ class OneBatchMan(Player):
   def remember_bad_move(self, action):
     # done = True, because if its a bad move we do not have a next state, 
     # thus passing True here will zero out second part of target computation
-    self.model.remember(self.cur_state.copy(), action, -50, self.no_state(), True)
+    self.model.remember(self.cur_state.copy(), action, punish_reward, self.no_state(), True)
 
   def get_name(self):
     return f"OneBatchMan{self.number}"
@@ -98,7 +107,7 @@ class OneBatchMan(Player):
     self.temp_reward = point_deltas[self]
 
   def set_final_reward(self, points: dict):
-    self.model.remember(self.cur_state, self.action, points[self], self.no_state(), True)
+    self.model.remember(self.cur_state, self.action, -points[self], self.no_state(), True)
     self.model.learn()
 
     self.memory = np.zeros(24)
