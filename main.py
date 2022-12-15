@@ -118,12 +118,12 @@ def copy(stats):
 
 def update_stats(scores, stats):
     winner = None
-    maxi = 0
+    mini = 0
     for p in scores:
         stats[p].sum += scores[p]
         stats[p].games += 1
-        if scores[p] >= maxi:
-            maxi = scores[p]
+        if scores[p] < mini:
+            mini = scores[p]
             winner = p
 
     stats[winner].wins += 1

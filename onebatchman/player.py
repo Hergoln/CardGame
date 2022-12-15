@@ -10,7 +10,7 @@ import time
 from pprint import pprint
 
 
-punish_reward = 50
+punish_reward = -50
 dnss = [48, 48]
 aplha = 3e-4
 gamma = 0.99
