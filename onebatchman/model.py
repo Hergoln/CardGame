@@ -29,7 +29,7 @@ class Brain(object):
     self.gamma = gamma
     self.epsilon = 1
     self.batch_size = batch_size
-    self.epsilon_dec = 0.98
+    self.epsilon_dec = 0.99
     self.epsilon_end = 0.05
     self.memory = ReplayBuffer(mem_size, input_dims, 24)
     self.network = build_dqn(alpha, input_dims, dnss, 24)

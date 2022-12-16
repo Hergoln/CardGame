@@ -1,22 +1,18 @@
 from card_game import Player, Card
 from onebatchman.utils import card_to_vector
 from . import decode, one_encode, Brain, suits_encode, card_id
-from pprint import pprint
 
 import random
 import numpy as np
-import time
-
-from pprint import pprint
 
 
 punish_reward = -50
-dnss = [48, 48]
-aplha = 3e-4
+dnss = [64, 48, 32]
+alpha = 1e-3
 gamma = 0.99
-batch_size = 16
+batch_size = 64
 max_mem_size = 1_000
-reward_discount = 2e-2
+reward_discount = 0.03
 
 class OneBatchMan(Player):
   def __init__(self, player_no, learning=False) -> None:
@@ -28,10 +24,10 @@ class OneBatchMan(Player):
     self.cur_hand = None
     self.previous_state = None
     self.previous_action = None
-    self.temp_reward = None
+    self.temp_reward = 0
     self.mvs = 0
     self.random_mvs = 0
-    self.model = Brain(alpha=aplha, gamma=gamma, batch_size=batch_size, input_dims=(3*24 + 4), mem_size=max_mem_size, dnss=dnss, n_actions=24, reward_discount=reward_discount)
+    self.model = Brain(alpha=alpha, gamma=gamma, batch_size=batch_size, input_dims=(3*24 + 4), mem_size=max_mem_size, dnss=dnss, n_actions=24, reward_discount=reward_discount)
     self.last_pred = None
 
   def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
@@ -62,6 +58,7 @@ class OneBatchMan(Player):
     if random.random() < epsilon:
       return card_id(random.choice(self.legal_moves(game_state)))
     possible_actions = self.get_legal_idx(game_state)
+    pred[possible_actions] += 1e-8
     action_matrix = np.zeros(24)
     action_matrix[possible_actions] = 1
     possible_actions = pred * action_matrix
@@ -104,16 +101,16 @@ class OneBatchMan(Player):
   def set_temp_reward(self, discarded_cards: dict, point_deltas: dict):
     discarded = one_encode(discarded_cards.values())
     self.memory[discarded > 0] = 1
-    self.temp_reward = point_deltas[self]
+    self.temp_reward += -point_deltas[self]
 
   def set_final_reward(self, points: dict):
-    self.model.remember(self.cur_state, self.action, -points[self], self.no_state(), True)
+    self.model.remember(self.cur_state, self.action, self.temp_reward, self.no_state(), True)
     self.model.learn()
 
     self.memory = np.zeros(24)
     self.previous_state = None
     self.previous_action = None
-    self.temp_reward = None
+    self.temp_reward = 0
     self.cur_state = None
 
   def save_model(self, fname):

@@ -118,11 +118,11 @@ def copy(stats):
 
 def update_stats(scores, stats):
     winner = None
-    mini = 0
+    mini = 1_000
     for p in scores:
         stats[p].sum += scores[p]
         stats[p].games += 1
-        if scores[p] < mini:
+        if scores[p] <= mini:
             mini = scores[p]
             winner = p
 
@@ -165,11 +165,9 @@ def main():
         game = CardGame(obm, pl0, pl1, pl2, display=display, full_deck=False)
 
     from tqdm import tqdm
-    import time
     scores = None
     interval = 10
     r_mvs_cnt = 0
-    mvs = 0
     progress_bar = tqdm(range(n_games), position=0)
     stats = tqdm(total=0, position=1, bar_format='{desc}')
 
