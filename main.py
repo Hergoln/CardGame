@@ -1,43 +1,11 @@
-import random
 import argparse
-
-from card_game import CardGame, Player, Card
-from onebatchman import OneBatchMan, card_names
+from card_game import CardGame
+from onebatchman import OneBatchMan, RandomPlayer, stat
 from matplotlib import pyplot as plt
 import tensorflow as tf
-from pprint import pprint
+from tqdm import tqdm
 
-
-player = 1
 global_stats = []
-
-class RandomPlayer(Player):
-    """
-    Makes random moves (but according to the rules)
-    """
-    def __init__(self):
-        global player
-        self.number = player
-        player += 1
-
-    def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
-        if not game_state["discard"]:
-            return random.choice(game_state["hand"])
-        else:
-            options = list(filter(lambda card: card.suit == list(game_state["discard"])[0].suit, game_state["hand"]))
-            if len(options) > 0:
-                return random.choice(options)
-            else:
-                return random.choice(game_state["hand"])
-
-    def get_name(self):
-        return f"RandomPlayer{self.number}"
-
-    def set_temp_reward(self, discarded_cards: dict, point_deltas: dict):
-        pass
-
-    def set_final_reward(self, points: dict):
-        pass
     
 def print_scores(scores: dict):
     out = ""
@@ -96,21 +64,6 @@ def define_path():
     count = len(os.listdir("obm-cp/"))
     return "obm-cp/obm" + str((count // 3) + 1)
 
-class stat:
-    def __init__(self) -> None:
-        self.wins = 0
-        self.avg = 0
-        self.sum = 0
-        self.games = 0
-
-    def copy(self):
-        other = stat()
-        other.wins = self.wins
-        other.avg = self.avg
-        other.sum = self.sum
-        other.games = self.games
-        return other
-
 def copy(stats):
     new_stats = {}
     for key in stats:
@@ -138,7 +91,6 @@ def main():
     tf_setup()
     cp_path = define_path()
 
-
     r_mvs = []
 
     args = parse()
@@ -148,18 +100,22 @@ def main():
     save = args.save
     load_path = args.load
     learning = not args.validate
-    print(f"learning: {learning}")
 
-    global player
+    player = 1
     obm = OneBatchMan(player, learning=learning)
-    if load_path is not None:
-        obm.load_model(load_path)
-    
     player += 1
+    if load_path is not None:
+        obm.load_model(load_path)    
 
     pl0 = RandomPlayer()
+    player += 1
+
     pl1 = RandomPlayer()
+    player += 1
+
     pl2 = RandomPlayer()
+    player += 1
+
     
     statistics = {obm: stat(), pl0: stat(), pl1: stat(), pl2: stat()}
     if args.delay:
@@ -167,7 +123,6 @@ def main():
     else:
         game = CardGame(obm, pl0, pl1, pl2, display=display, full_deck=False)
 
-    from tqdm import tqdm
     scores = None
     interval = 10
     r_mvs_cnt = 0
@@ -186,9 +141,7 @@ def main():
                 print("\n\n")
                 print(obm.last_pred)
                 if save:
-                    # freq = (card_names(), obm.model.actions_frequency)
                     checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
-                    # print(obm.loss_history())
 
         except Exception as e:
             print(e)
@@ -203,7 +156,6 @@ def main():
         update_stats(scores, statistics)
         update_avg(statistics)
         print(compose_stats(statistics))
-        # freq = (card_names(), obm.model.actions_frequency)
     if save:
         checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
     plt.show()

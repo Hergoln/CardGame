@@ -3,3 +3,4 @@ venv
 obm-cp
 models_of_other_groups
 tests
+validation_main.py
