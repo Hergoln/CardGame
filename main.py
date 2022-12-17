@@ -64,6 +64,7 @@ def parse():
     parser.add_argument('--display', action='store_true', help='display card game in pygame')
     parser.add_argument('--save', action='store_true', help='save model after games all games are played out')
     parser.add_argument('--load', type=str, help='path to model')
+    parser.add_argument('--validate', action='store_true', help='model will not be learning if set to true')
     return parser.parse_args()
 
 def save_results(cp_path):
@@ -146,9 +147,11 @@ def main():
     display = args.display
     save = args.save
     load_path = args.load
+    learning = not args.validate
+    print(f"learning: {learning}")
 
     global player
-    obm = OneBatchMan(player, learning=True)
+    obm = OneBatchMan(player, learning=learning)
     if load_path is not None:
         obm.load_model(load_path)
     

@@ -17,7 +17,7 @@ reward_discount = 0.03
 class OneBatchMan(Player):
   def __init__(self, player_no, learning=False) -> None:
     self.number = player_no
-    self.learning = False
+    self.learning = learning
     self.memory = np.zeros(24)
     self.cur_state = None
     self.action = None
@@ -55,7 +55,7 @@ class OneBatchMan(Player):
     return decode(self.action)
 
   def pick_move(self, game_state, pred, epsilon):
-    if random.random() < epsilon:
+    if self.learning and random.random() < epsilon:
       return card_id(random.choice(self.legal_moves(game_state)))
     possible_actions = self.get_legal_idx(game_state)
     pred[possible_actions] += 1e-8
@@ -104,8 +104,9 @@ class OneBatchMan(Player):
     self.temp_reward += -point_deltas[self]
 
   def set_final_reward(self, points: dict):
-    self.model.remember(self.cur_state, self.action, self.temp_reward, self.no_state(), True)
-    self.model.learn()
+    if self.learning:
+      self.model.remember(self.cur_state, self.action, self.temp_reward, self.no_state(), True)
+      self.model.learn()
 
     self.memory = np.zeros(24)
     self.previous_state = None
