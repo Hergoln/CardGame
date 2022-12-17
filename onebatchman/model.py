@@ -23,14 +23,14 @@ def build_dqn(lr, input_dims, dense_dims, n_actions):
   return model
 
 class Brain(object):
-  def __init__(self, alpha, gamma, batch_size, input_dims, mem_size, dnss, n_actions, reward_discount) -> None:
+  def __init__(self, alpha, gamma, batch_size, input_dims, mem_size, dnss, n_actions, reward_discount, epsilon_dec=0.99, epsilon_end = 0.05) -> None:
     self.n_actions = n_actions
     self.action_space = np.array([i for i in  range(self.n_actions)], dtype=np.int8)
     self.gamma = gamma
     self.epsilon = 1
     self.batch_size = batch_size
-    self.epsilon_dec = 0.99
-    self.epsilon_end = 0.05
+    self.epsilon_dec = epsilon_dec
+    self.epsilon_end = epsilon_end
     self.memory = ReplayBuffer(mem_size, input_dims, 24)
     self.network = build_dqn(alpha, input_dims, dnss, 24)
     self.history = []

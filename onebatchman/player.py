@@ -8,11 +8,13 @@ import numpy as np
 
 punish_reward = -50
 dnss = [64, 48, 32]
-alpha = 1e-3
+alpha = 1e-4
 gamma = 0.99
 batch_size = 64
 max_mem_size = 1_000
 reward_discount = 0.03
+epsilon_dec = 0.999
+epsolon_end = 0.05
 
 class OneBatchMan(Player):
   def __init__(self, player_no, learning=False) -> None:
@@ -27,7 +29,13 @@ class OneBatchMan(Player):
     self.temp_reward = 0
     self.mvs = 0
     self.random_mvs = 0
-    self.model = Brain(alpha=alpha, gamma=gamma, batch_size=batch_size, input_dims=(3*24 + 4), mem_size=max_mem_size, dnss=dnss, n_actions=24, reward_discount=reward_discount)
+    self.model = Brain(
+        alpha=alpha, gamma=gamma, batch_size=batch_size, input_dims=(3*24 + 4),
+        mem_size=max_mem_size, dnss=dnss, n_actions=24, 
+        reward_discount=reward_discount,
+        epsilon_dec=epsilon_dec,
+        epsilon_end=epsolon_end
+      )
     self.last_pred = None
 
   def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
