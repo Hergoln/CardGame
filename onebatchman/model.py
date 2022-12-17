@@ -48,8 +48,8 @@ class Brain(object):
       state, action, reward, new_state, done = self.memory.sample_buffer(self.batch_size)
 
       pred = self.network.predict(state, verbose=0)
-      next_action = next.argmax(axis=1)
       next = self.network.predict(new_state, verbose=0)
+      next_action = next.argmax(axis=1)
       batch_index = np.arange(self.batch_size, dtype=np.int8)
       pred[batch_index, action] = reward * self.reward_discount + self.gamma * next[batch_index, next_action] * (1 - done)
 

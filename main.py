@@ -5,6 +5,10 @@ from matplotlib import pyplot as plt
 import tensorflow as tf
 from tqdm import tqdm
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 global_stats = []
     
 def print_scores(scores: dict):
@@ -107,13 +111,13 @@ def main():
     if load_path is not None:
         obm.load_model(load_path)    
 
-    pl0 = RandomPlayer()
+    pl0 = RandomPlayer(player)
     player += 1
 
-    pl1 = RandomPlayer()
+    pl1 = RandomPlayer(player)
     player += 1
 
-    pl2 = RandomPlayer()
+    pl2 = RandomPlayer(player)
     player += 1
 
     
@@ -144,13 +148,9 @@ def main():
                     checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
 
         except Exception as e:
-            print(e)
+            logger.exception(e)
             if save:
                 checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
-            print("Oh well")
-
-    
-    obm.model.memory.print_buffer('buffer_result.txt')
 
     if scores:
         update_stats(scores, statistics)
