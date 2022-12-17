@@ -16,9 +16,13 @@ reward_discount = 0.03
 epsilon_dec = 0.999
 epsolon_end = 0.05
 
+
+player_no = 1
 class OneBatchMan(Player):
-  def __init__(self, player_no, learning=False) -> None:
+  def __init__(self, learning=False) -> None:
+    global player_no
     self.number = player_no
+    player_no += 1
     self.learning = learning
     self.memory = np.zeros(24)
     self.cur_state = None

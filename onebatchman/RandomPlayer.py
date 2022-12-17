@@ -1,12 +1,16 @@
 import random
 from card_game import Player, Card
 
+player = 1
+
 class RandomPlayer(Player):
     """
     Makes random moves (but according to the rules)
     """
-    def __init__(self, player):
+    def __init__(self):
+        global player
         self.number = player
+        player += 1
 
     def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
         if not game_state["discard"]:

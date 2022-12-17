@@ -18,7 +18,7 @@ def build_dqn(lr, input_dims, dense_dims, n_actions):
   layers.append(Softmax())
 
   model = Sequential(layers)
-  model.compile(optimizer=Adam(lr=lr), loss='mse')
+  model.compile(optimizer=Adam(learning_rate=lr), loss='mse')
   model.summary()
   return model
 

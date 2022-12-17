@@ -6,17 +6,11 @@ import tensorflow as tf
 from tqdm import tqdm
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 global_stats = []
     
-def print_scores(scores: dict):
-    out = ""
-    for player in scores:
-        out += f"{player.get_name()} scored {scores[player]}; "
-    print(out)
-
 def compose_stats(statistics):
     out = ""
     for p in statistics:
@@ -105,21 +99,13 @@ def main():
     load_path = args.load
     learning = not args.validate
 
-    player = 1
-    obm = OneBatchMan(player, learning=learning)
-    player += 1
+    obm = OneBatchMan(learning=learning)
     if load_path is not None:
         obm.load_model(load_path)    
 
-    pl0 = RandomPlayer(player)
-    player += 1
-
-    pl1 = RandomPlayer(player)
-    player += 1
-
-    pl2 = RandomPlayer(player)
-    player += 1
-
+    pl0 = RandomPlayer()
+    pl1 = RandomPlayer()
+    pl2 = RandomPlayer()
     
     statistics = {obm: stat(), pl0: stat(), pl1: stat(), pl2: stat()}
     if args.delay:
