@@ -1,6 +1,12 @@
 __pycache__
 venv
 obm-cp
-models_of_other_groups
 tests
+
+
+# ignores of validation and files from other groups
+models_of_other_groups
 validation_main.py
+wagi*
+checkpoint
+clever_player_weights.h5
