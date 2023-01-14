@@ -17,7 +17,8 @@ def build_dqn(lr, input_dims, dense_dims, n_actions):
   layers.append(Dense(n_actions))
   layers.append(Softmax())
 
-  model = Sequential(layers)
+  model = Sequential(layers, name = "Brain of OneBatchMan")
+
   model.compile(optimizer=Adam(learning_rate=lr), loss='mse')
   model.summary()
   return model
