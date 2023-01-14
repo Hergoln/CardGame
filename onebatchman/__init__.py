@@ -28,7 +28,8 @@
 """
 
 from .model import Brain
-from .utils import one_encode, decode, card_names, suits_encode
+from .utils import one_encode, decode, card_names, suits_encode, card_id
 from .player import OneBatchMan
 from .replybuffer import ReplayBuffer
-
+from .RandomPlayer import RandomPlayer
+from .stat import stat

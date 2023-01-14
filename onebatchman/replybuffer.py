@@ -7,7 +7,7 @@ class ReplayBuffer(object):
         self.state_memory = np.zeros((self.mem_size, input_shape), dtype=np.float32)
         self.new_state_memory = np.zeros((self.mem_size, input_shape), dtype=np.float32)
 
-        self.action_memory = np.zeros((self.mem_size, n_actions), dtype=np.int8)
+        self.action_memory = np.zeros(self.mem_size, dtype=np.int8)
         self.reward_memory = np.zeros(self.mem_size, dtype=np.float32)
         self.terminal_memory = np.zeros(self.mem_size, dtype=np.bool)
 
@@ -32,3 +32,23 @@ class ReplayBuffer(object):
         terminal = self.terminal_memory[batch]
 
         return states, actions, rewards, states_, terminal
+
+    def print_buffer(self):
+        for index in range(self.mem_cntr if self.mem_cntr < self.mem_size else self.mem_size):
+            print(self.transition_rep(index))
+
+    def print_buffer(self, filename):
+        with open(filename, 'w') as filehandler:
+            for index in range(self.mem_cntr if self.mem_cntr < self.mem_size else self.mem_size):
+                filehandler.write(self.get_transition(index))
+
+    def get_transition(self, index):
+        ester = '\n'
+        ester += f"Transition no.: {index}\n"
+        ester += str(self.state_memory[index]) + "\n"
+        ester += str(self.new_state_memory[index]) + "\n"
+        ester += str(self.action_memory[index]) + "\n"
+        ester += str(self.reward_memory[index]) + "\n"
+        ester += str(self.terminal_memory[index]) + "\n"
+        ester += '\n'
+        return ester

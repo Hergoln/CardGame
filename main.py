@@ -1,50 +1,16 @@
-import random
 import argparse
-
-from card_game import CardGame, Player, Card
-from onebatchman import OneBatchMan, card_names
+from card_game import CardGame
+from onebatchman import OneBatchMan, RandomPlayer, stat
 from matplotlib import pyplot as plt
 import tensorflow as tf
-from pprint import pprint
+from tqdm import tqdm
 
+import logging
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
 
-player = 1
-
-
-class RandomPlayer(Player):
-    """
-    Makes random moves (but according to the rules)
-    """
-    def __init__(self):
-        global player
-        self.number = player
-        player += 1
-
-    def make_move(self, game_state: dict, was_previous_move_wrong: bool) -> Card:
-        if not game_state["discard"]:
-            return random.choice(game_state["hand"])
-        else:
-            options = list(filter(lambda card: card.suit == list(game_state["discard"])[0].suit, game_state["hand"]))
-            if len(options) > 0:
-                return random.choice(options)
-            else:
-                return random.choice(game_state["hand"])
-
-    def get_name(self):
-        return f"RandomPlayer{self.number}"
-
-    def set_temp_reward(self, discarded_cards: dict, point_deltas: dict):
-        pass
-
-    def set_final_reward(self, points: dict):
-        pass
+global_stats = []
     
-def print_scores(scores: dict):
-    out = ""
-    for player in scores:
-        out += f"{player.get_name()} scored {scores[player]}; "
-    print(out)
-
 def compose_stats(statistics):
     out = ""
     for p in statistics:
@@ -54,8 +20,8 @@ def compose_stats(statistics):
 
 def tf_setup():
     gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
+    tf.debugging.set_log_device_placement(False)
+    tf.config.set_visible_devices(gpus, 'GPU')
 
 def parse():
     parser = argparse.ArgumentParser(description='Python CardGame for zkum classes')
@@ -64,16 +30,23 @@ def parse():
     parser.add_argument('--display', action='store_true', help='display card game in pygame')
     parser.add_argument('--save', action='store_true', help='save model after games all games are played out')
     parser.add_argument('--load', type=str, help='path to model')
+    parser.add_argument('--validate', action='store_true', help='model will not be learning if set to true')
     return parser.parse_args()
 
-def checkpoint(cp_path, player, loss: list, r_mvs: list, freq):
+def save_results(cp_path):
+    with open(cp_path + '_results' + '.txt', 'w') as filehandler:
+        for item in global_stats:
+            filehandler.write('%s\n' % compose_stats(item))
+
+def checkpoint(cp_path, player, loss: list, r_mvs: list):
     player.save_model(cp_path + '.h5')
-    fig = plot_things(loss, r_mvs, freq)
+    save_results(cp_path)
+    fig = plot_things(loss, r_mvs)
     fig.savefig(cp_path + '.png')
     plt.close(fig)
 
-def plot_things(loss: list, r_mvs: list, freq):
-    fig, ax = plt.subplots(3, 1, figsize=(20, 14))
+def plot_things(loss: list, r_mvs: list):
+    fig, ax = plt.subplots(2, 1, figsize=(20, 14))
 
     ax[0].set_title("loss")
     ax[0].plot(loss)
@@ -81,35 +54,32 @@ def plot_things(loss: list, r_mvs: list, freq):
     ax[1].set_title("random moves per game")
     ax[1].plot(r_mvs)
 
-    ax[2].set_title("Moves frequency")
-    ax[2].bar(freq[0], freq[1], align='edge')
-
     fig.tight_layout()
     return fig
 
 def define_path():
     import os
     count = len(os.listdir("obm-cp/"))
-    return "obm-cp/obm" + str((count // 2) + 1)
+    return "obm-cp/obm" + str((count // 3) + 1)
 
-class stat:
-    def __init__(self) -> None:
-        self.wins = 0
-        self.avg = 0
-        self.sum = 0
-        self.games = 0
+def copy(stats):
+    new_stats = {}
+    for key in stats:
+        new_stats[key] = stats[key].copy()
+    return new_stats
 
 def update_stats(scores, stats):
     winner = None
-    maxi = 0
+    mini = 1_000
     for p in scores:
         stats[p].sum += scores[p]
         stats[p].games += 1
-        if scores[p] >= maxi:
-            maxi = scores[p]
+        if scores[p] <= mini:
+            mini = scores[p]
             winner = p
 
     stats[winner].wins += 1
+    global_stats.append(copy(stats))
 
 def update_avg(stats):
     for p in stats:
@@ -119,7 +89,6 @@ def main():
     tf_setup()
     cp_path = define_path()
 
-
     r_mvs = []
 
     args = parse()
@@ -128,45 +97,53 @@ def main():
     display = args.display
     save = args.save
     load_path = args.load
+    learning = not args.validate
 
-    global player
-    obm = OneBatchMan(player, learning=True, alpha=1e-2)
+    obm = OneBatchMan(learning=learning)
     if load_path is not None:
-        obm.load_model(load_path)
-    
-    player += 1
+        obm.load_model(load_path)    
 
     pl0 = RandomPlayer()
     pl1 = RandomPlayer()
     pl2 = RandomPlayer()
     
     statistics = {obm: stat(), pl0: stat(), pl1: stat(), pl2: stat()}
-    game = CardGame(obm, pl0, pl1, pl2, delay=delay, display=display, full_deck=False)
+    if args.delay:
+        game = CardGame(obm, pl0, pl1, pl2, delay=delay, display=display, full_deck=False)
+    else:
+        game = CardGame(obm, pl0, pl1, pl2, display=display, full_deck=False)
 
-    from tqdm import tqdm
-
+    scores = None
     interval = 10
     r_mvs_cnt = 0
-    mvs = 0
     progress_bar = tqdm(range(n_games), position=0)
     stats = tqdm(total=0, position=1, bar_format='{desc}')
 
     for cntr in progress_bar:
-        scores = game.start()
+        try:
+            scores = game.start()
+            update_stats(scores, statistics)
+            update_avg(statistics)
+            r_mvs.append(obm.random_mvs - r_mvs_cnt)
+            stats.set_description_str(compose_stats(statistics))
+            r_mvs_cnt = obm.random_mvs
+            if (cntr + 1) % interval == 0:
+                print("\n\n")
+                print(obm.last_pred)
+                if save:
+                    checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
+
+        except Exception as e:
+            logger.exception(e)
+            if save:
+                checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
+
+    if scores:
         update_stats(scores, statistics)
         update_avg(statistics)
-        r_mvs.append(obm.random_mvs - r_mvs_cnt)
-        stats.set_description_str(compose_stats(statistics))
-        r_mvs_cnt = obm.random_mvs
-        if (cntr + 1) % interval == 0:
-            if save:
-                freq = (card_names(), obm.model.actions_frequency)
-                checkpoint(cp_path, obm, obm.loss_history(), r_mvs, freq)
-
-    update_avg(statistics)
-    print(compose_stats(statistics))
-    freq = (card_names(), obm.model.actions_frequency)
-    checkpoint(cp_path, obm, obm.loss_history(), r_mvs, freq)
+        print(compose_stats(statistics))
+    if save:
+        checkpoint(cp_path, obm, obm.loss_history(), r_mvs)
     plt.show()
 
 if __name__ == '__main__':
